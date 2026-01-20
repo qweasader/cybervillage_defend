@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="telegram-app" content="true">
+    <title>Защита Кибердеревни</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="/manifest.json">
+    <script src="telegram.js" defer></script>
+    <script>
+        // Service Worker для оффлайн-режима
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registered:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('ServiceWorker registration failed:', error);
+                    });
+            });
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <button class="back-button" onclick="tgApp.closeApp()">←</button>
+            <div class="logo">🛡️ Кибердеревня</div>
+            <div class="user-info" id="userInfo"></div>
+        </header>
+
+        <main>
+            <div class="story">
+                <h1>Призыв Хранителя</h1>
+                <p>Добро пожаловать, Киберстражи! Вирус "Тень Сети" атаковал нашу цифровую деревню. 
+                Ваша миссия — собрать <span class="highlight">6 цифровых амулетов</span> и активировать 
+                <span class="highlight">Иммунный Щит</span>, чтобы спасти всех хранителей данных.</p>
+                
+                <div class="video-container">
+                    <div class="video-placeholder">
+                        <div class="play-icon">▶</div>
+                        <p>Видео с Хранителем</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="level-selection">
+                <h2>Выберите уровень сложности:</h2>
+                <div class="level-cards">
+                    <div class="card beginner" onclick="setLevel('beginner')">
+                        <h3>🎯 Новичок</h3>
+                        <p>Логические загадки и простые шифры. Не требует знаний в IT.</p>
+                        <ul>
+                            <li>Зеркальные слова</li>
+                            <li>Цветовые коды</li>
+                            <li>Математические примеры</li>
+                        </ul>
+                    </div>
+                    <div class="card pro" onclick="setLevel('pro')">
+                        <h3>💻 Профи</h3>
+                        <p>Задания с базовыми ИБ-навыками. Требует знания шифров и анализа данных.</p>
+                        <ul>
+                            <li>Base64/XOR</li>
+                            <li>Анализ логов</li>
+                            <li>Поиск уязвимостей</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="start-section">
+                <button class="start-button" id="startButton" disabled>
+                    НАЧАТЬ МИССИЮ
+                </button>
+            </div>
+        </main>
+
+        <footer>
+            <p>Организовано командой Киберстражей • <span id="current-time"></span></p>
+        </footer>
+    </div>
+
+    <div class="close-button">✕</div>
+
+    <script>
+        // Ожидание инициализации Telegram
+        document.addEventListener('telegramReady', () => {
+            updateUserInfo();
+            document.getElementById('startButton').disabled = false;
+        });
+
+        function updateUserInfo() {
+            const userInfo = document.getElementById('userInfo');
+            if (tgApp.isTelegram && tgApp.userData) {
+                userInfo.innerHTML = `
+                    <div class="user-avatar">${tgApp.userData.firstName?.[0] || '👤'}</div>
+                    <div class="user-name">${tgApp.userData.firstName || 'Киберстраж'}</div>
+                `;
+            }
+        }
+
+        function setLevel(level) {
+            tgApp.saveProgress('cybervillage_level', level);
+            document.querySelectorAll('.card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            event.currentTarget.classList.add('selected');
+            
+            tgApp.showAlert(`Уровень "${level === 'beginner' ? 'Новичок' : 'Профи'}" выбран!`, () => {
+                document.querySelector('.start-section').scrollIntoView({ behavior: 'smooth' });
+            });
+        }
+
+        document.getElementById('startButton').addEventListener('click', () => {
+            if (!tgApp.userData?.level) {
+                tgApp.showAlert('Сначала выберите уровень сложности!', () => {
+                    document.querySelector('.level-selection').scrollIntoView({ behavior: 'smooth' });
+                });
+                return;
+            }
+            
+            tgApp.saveProgress('cybervillage_registered', 'true');
+            tgApp.saveProgress('cybervillage_start_time', new Date().toISOString());
+            
+            tgApp.showConfirm(
+                'Начать миссию по спасению Кибердеревни?',
+                () => {
+                    window.location.href = `map.html?team=${tgApp.userData.teamId}&level=${tgApp.userData.level}`;
+                }
+            );
+        });
+
+        // Отображение текущего времени
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('current-time').textContent = 
+                now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+    </script>
+</body>
+</html>
