@@ -8,7 +8,6 @@
     <title>Защита Кибердеревни</title>
     <link rel="stylesheet" href="style.css">
     <script src="telegram.js" defer></script>
-    <script src="game.js" defer></script>
 </head>
 <body>
     <div class="container">
@@ -40,79 +39,59 @@
             </div>
 
             <div class="start-section">
-                <button class="start-button" id="startButton" disabled>
+                <button class="start-button" id="startButton">
                     НАЧАТЬ МИССИЮ
                 </button>
-                <p class="web-note" id="webNote">ℹ️ Используйте это приложение в Telegram для полного функционала.</p>
             </div>
         </main>
 
         <footer>
             <p>Организовано командой Киберстражей • <span id="current-time"></span></p>
+            <div class="telegram-commands">
+                <p>Доступные команды в Telegram:</p>
+                <p><code>/start</code> - начать игру</p>
+                <p><code>/hint</code> - запросить подсказку</p>
+
+            </div>
         </footer>
     </div>
 
     <script>
         document.addEventListener('telegramReady', (event) => {
-            const { isTelegram, userData, isWebVersion } = event.detail;
+            const { isTelegram, userData } = event.detail;
             
-            if (isWebVersion) {
-                document.getElementById('webNote').style.display = 'block';
-                document.body.classList.add('web-version');
-            } else {
-                document.getElementById('webNote').style.display = 'none';
-                document.body.classList.remove('web-version');
-            }
-            
-            // Активация кнопки после загрузки
-            setTimeout(() => {
-                document.getElementById('startButton').disabled = false;
-            }, 500);
-            
-            // Обновление информации о пользователе
             if (userData) {
                 document.getElementById('userInfo').innerHTML = `
                     <div class="user-avatar">${userData.firstName?.[0] || '👤'}</div>
                     <div class="user-name">${userData.firstName || 'Киберстраж'}</div>
                 `;
             }
+            
+            if (!isTelegram) {
+                document.querySelector('.telegram-commands').style.display = 'none';
+            }
         });
 
-        // Выбор уровня сложности
         document.querySelectorAll('.card').forEach(card => {
             card.addEventListener('click', () => {
                 const level = card.getAttribute('data-level');
-                
-                // Сохранение уровня
-                tgApp.userData.level = level;
-                localStorage.setItem('cybervillage_level', level);
-                
-                // Визуальная обратная связь
+                tgApp.setPlayerLevel(level);
                 document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
                 card.classList.add('selected');
-                
-                // Уведомление
-                tgApp.showAlert(`Уровень "${level === 'beginner' ? 'Новичок' : 'Профи'}" выбран!`);
             });
         });
 
-        // Кнопка старта
         document.getElementById('startButton').addEventListener('click', async () => {
-            if (!tgApp.userData?.level) {
+            const level = tgApp.getPlayerLevel();
+            if (!level) {
                 tgApp.showAlert('Сначала выберите уровень сложности!');
                 return;
             }
             
-            // Отправка события начала миссии
-            await tgApp.sendMissionStarted();
-            
-            tgApp.showAlert('✅ Миссия начата! Ищите первый амулет в Серверном Лесу.', () => {
-                // Здесь будет переход к первой локации в полной версии
-                console.log('Mission started, redirecting to first location...');
-            });
+            await tgApp.sendMissionStarted(level);
+            tgApp.showAlert('✅ Миссия начата! Ищите первый амулет в Серверном Лесу.');
         });
 
-        // Отображение текущего времени
         function updateTime() {
             const now = new Date();
             document.getElementById('current-time').textContent = 
