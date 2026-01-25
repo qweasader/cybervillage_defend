@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админ-панель - Кибердеревня</title>
+    <link rel="stylesheet" href="../style.css">
+    <script src="../telegram.js" defer></script>
+    <script src="../game.js" defer></script>
+    <style>
+        .admin-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #6a11cb;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #6a11cb;
+            margin: 10px 0;
+        }
+        
+        .triggers-section {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            margin: 30px 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        
+        .trigger-item {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .trigger-controls {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .trigger-btn {
+            padding: 6px 15px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .trigger-btn.activate {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .trigger-btn.delete {
+            background: #f44336;
+            color: white;
+        }
+        
+        .manual-trigger {
+            background: #2196f3;
+            color: white;
+        }
+        
+        .event-form {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+        
+        .submit-btn {
+            background: linear-gradient(45deg, #6a11cb, #2575fc);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(106, 17, 203, 0.4);
+        }
+        
+        .system-messages {
+            margin-top: 30px;
+        }
+        
+        .message-item {
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            background: #e8f4ff;
+            border-left: 4px solid #2196f3;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .empty-state {
+            text-align: center;
+            color: #6c757d;
+            padding: 20px;
+        }
+        
+        .error {
+            color: #ff1744;
+            text-align: center;
+            padding: 10px;
+        }
+        
+        .trigger-note {
+            font-size: 0.9rem;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">🛡️ Админ-панель</div>
+            <div class="user-info" id="userInfo"></div>
+        </header>
+
+        <main class="admin-container">
+            <div class="admin-header">
+                <h1>Контрольная панель организатора</h1>
+                <div class="controls">
+                    <button class="trigger-btn manual-trigger" onclick="sendEmergencyAlert()">
+                        🚨 СРОЧНОЕ СООБЩЕНИЕ
+                    </button>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Активные игроки</h3>
+                    <div class="stat-value" id="activePlayers">0</div>
+                    <p>В текущий момент</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Собрано амулетов</h3>
+                    <div class="stat-value" id="totalAmulets">0</div>
+                    <p>Всего за мероприятие</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Запрошено подсказок</h3>
+                    <div class="stat-value" id="totalHints">0</div>
+                    <p>За последние 24 часа</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Системные события</h3>
+                    <div class="stat-value" id="systemEvents">0</div>
+                    <p>Сегодня</p>
+                </div>
+            </div>
+
+            <div class="triggers-section">
+                <h2>Система триггеров</h2>
+                <p>Автоматические события по времени, QR-кодам и прогрессу игроков</p>
+                
+                <div class="trigger-list" id="triggerList">
+                    <p>Загрузка триггеров...</p>
+                </div>
+                
+                <div class="event-form">
+                    <h3>Создать новое событие</h3>
+                    <form id="triggerForm">
+                        <div class="form-group">
+                            <label for="triggerType">Тип триггера</label>
+                            <select id="triggerType" required>
+                                <option value="time">По времени</option>
+                                <option value="qr_scan">При сканировании QR</option>
+                                <option value="location">При достижении локации</option>
+                                <option value="amulets">При сборе амулетов</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group" id="timeField">
+                            <label for="triggerTime">Время события</label>
+                            <input type="datetime-local" id="triggerTime" required>
+                        </div>
+                        
+                        <div class="form-group hidden" id="qrField">
+                            <label for="triggerQrId">ID QR кода</label>
+                            <input type="text" id="triggerQrId" placeholder="qr_forest_01" required>
+                        </div>
+                        
+                        <div class="form-group hidden" id="locationField">
+                            <label for="triggerLocation">Локация</label>
+                            <select id="triggerLocation" required>
+                                <option value="forest">Серверный Лес</option>
+                                <option value="bridge">Мост VPN</option>
+                                <option value="lake">Озеро Шифрования</option>
+                                <option value="phishing">Поле Фишинга</option>
+                                <option value="storage">Склад Данных</option>
+                                <option value="firewall">Башня Брандмауэра</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group hidden" id="amuletsField">
+                            <label for="triggerAmulets">Количество амулетов</label>
+                            <input type="number" id="triggerAmulets" min="1" max="6" value="3" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="triggerMessage">Сообщение для игроков</label>
+                            <textarea id="triggerMessage" rows="3" required placeholder="Введите сообщение для игроков"></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="triggerAdminNote">Примечание для организаторов</label>
+                            <input type="text" id="triggerAdminNote" placeholder="Необязательное примечание">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="broadcastAll" checked>
+                                Отправить всем игрокам
+                            </label>
+                        </div>
+                        
+                        <button type="submit" class="submit-btn">СОЗДАТЬ ТРИГГЕР</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="system-messages">
+                <h2>Лента событий</h2>
+                <div id="eventsFeed">
+                    <p>Загрузка событий...</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('telegramReady', async () => {
+            if (!tgApp.isAdmin()) {
+                tgApp.showAlert('Доступ запрещен! Только для организаторов.', () => {
+                    window.location.href = '../index.html';
+                });
+                return;
+            }
+            
+            await Promise.all([
+                loadDashboardData(),
+                loadTriggers(),
+                loadEventsFeed()
+            ]);
+            
+            setupTriggerForm();
+        });
+
+        async function loadDashboardData() {
+            try {
+                const response = await fetch(`${tgApp.backendUrl}/api/admin-dashboard?action=dashboard-data`, {
+                    headers: {
+                        'X-Telegram-Init-Data': tgApp.userData.initData
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('activePlayers').textContent = data.activePlayers;
+                    document.getElementById('totalAmulets').textContent = data.totalAmulets;
+                    document.getElementById('totalHints').textContent = data.totalHints;
+                    document.getElementById('systemEvents').textContent = data.systemEvents;
+                }
+            } catch (error) {
+                console.error('Dashboard data error:', error);
+            }
+        }
+
+        async function loadTriggers() {
+            try {
+                const response = await fetch(`${tgApp.backendUrl}/api/triggers`, {
+                    headers: {
+                        'X-Telegram-Init-Data': tgApp.userData.initData
+                    }
+                });
+                
+                if (response.ok) {
+                    const triggers = await response.json();
+                    renderTriggers(triggers);
+                }
+            } catch (error) {
+                console.error('Triggers load error:', error);
+                document.getElementById('triggerList').innerHTML = '<p class="error">Ошибка загрузки триггеров</p>';
+            }
+        }
+
+        async function loadEventsFeed() {
+            try {
+                const response = await fetch(`${tgApp.backendUrl}/api/admin-dashboard?action=recent-events`, {
+                    headers: {
+                        'X-Telegram-Init-Data': tgApp.userData.initData
+                    }
+                });
+                
+                if (response.ok) {
+                    const events = await response.json();
+                    renderEventsFeed(events);
+                }
+            } catch (error) {
+                console.error('Events feed error:', error);
+                document.getElementById('eventsFeed').innerHTML = '<p class="error">Ошибка загрузки событий</p>';
+            }
+        }
+
+        function renderTriggers(triggers) {
+            const container = document.getElementById('triggerList');
+            
+            if (triggers.length === 0) {
+                container.innerHTML = '<p class="empty-state">Нет активных триггеров</p>';
+                return;
+            }
+            
+            let html = '';
+            triggers.forEach(trigger => {
+                html += `
+                    <div class="trigger-item" data-trigger-id="${trigger.id}">
+                        <div class="trigger-info">
+                            <strong>${getTriggerTypeName(trigger.type)}</strong><br>
+                            ${getTriggerDetails(trigger)}
+                            ${trigger.adminNote ? `<div class="trigger-note">${trigger.adminNote}</div>` : ''}
+                        </div>
+                        <div class="trigger-controls">
+                            <button class="trigger-btn activate" onclick="activateTrigger('${trigger.id}')">
+                                ✅ Активировать
+                            </button>
+                            <button class="trigger-btn delete" onclick="deleteTrigger('${trigger.id}')">
+                                🗑️ Удалить
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function renderEventsFeed(events) {
+            const container = document.getElementById('eventsFeed');
+            
+            if (events.length === 0) {
+                container.innerHTML = '<p class="empty-state">Нет событий за сегодня</p>';
+                return;
+            }
+            
+            let html = '';
+            events.slice(0, 20).forEach(event => {
+                const time = new Date(event.timestamp).toLocaleTimeString('ru-RU');
+                const color = getEventColor(event.type);
+                
+                html += `
+                    <div class="message-item">
+                        <strong style="color: ${color}">[${time}] ${event.type}</strong><br>
+                        ${event.message || JSON.stringify(event.data).substring(0, 100) + '...'}
+                        ${event.data?.userId ? `<br><small>Игрок: ${event.data.userId}</small>` : ''}
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function getTriggerTypeName(type) {
+            const types = {
+                'time': '⏰ По времени',
+                'qr_scan': '📷 При сканировании QR',
+                'location': '📍 При достижении локации',
+                'amulets': '💎 При сборе амулетов'
+            };
+            return types[type] || type;
+        }
+
+        function getTriggerDetails(trigger) {
+            switch (trigger.type) {
+                case 'time':
+                    return `Время: ${new Date(trigger.time).toLocaleString('ru-RU')}`;
+                case 'qr_scan':
+                    return `QR ID: ${trigger.qrId}`;
+                case 'location':
+                    return `Локация: ${trigger.location}`;
+                case 'amulets':
+                    return `Амулетов: ${trigger.count}/6`;
+                default:
+                    return '';
+            }
+        }
+
+        function getEventColor(type) {
+            const colors = {
+                'trigger_activated': '#ff9100',
+                'emergency_alert_sent': '#ff1744',
+                'trigger_created': '#4caf50',
+                'trigger_deleted': '#f44336',
+                'amulet_collected': '#2196f3',
+                'mission_started': '#9c27b0',
+                'qr_scanned': '#3f51b5'
+            };
+            return colors[type] || '#2196f3';
+        }
+
+        async function activateTrigger(triggerId) {
+            if (!confirm('Активировать этот триггер немедленно?')) return;
+            
+            try {
+                const response = await fetch(`${tgApp.backendUrl}/api/triggers`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Telegram-Init-Data': tgApp.userData.initData
+                    },
+                    body: JSON.stringify({ triggerId })
+                });
+                
+                if (response.ok) {
+                    tgApp.showAlert('✅ Триггер успешно активирован!');
+                    await loadTriggers();
+                    await loadEventsFeed();
+                } else {
+                    const error = await response.json();
+                    tgApp.showAlert(`❌ Ошибка: ${error.error}`);
+                }
+            } catch (error) {
+                console.error('Trigger activation error:', error);
+                tgApp.showAlert('❌ Ошибка активации триггера');
+            }
+        }
+
+        async function deleteTrigger(triggerId) {
+            if (!confirm('Удалить этот триггер? Это действие нельзя отменить!')) return;
+            
+            try {
+                const response = await fetch(`${tgApp.backendUrl}/api/admin-dashboard?action=delete-trigger`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Telegram-Init-Data': tgApp.userData.initData
+                    },
+                    body: JSON.stringify({ triggerId })
+                });
+                
+                if (response.ok) {
+                    tgApp.showAlert('✅ Триггер удален');
+                    await loadTriggers();
+                } else {
+                    const error = await response.json();
+                    tgApp.showAlert(`❌ Ошибка: ${error.error}`);
+                }
+            } catch (error) {
+                console.error('Trigger delete error:', error);
+                tgApp.showAlert('❌ Ошибка удаления триггера');
+            }
+        }
+
+        function setupTriggerForm() {
+            const typeSelect = document.getElementById('triggerType');
+            const timeField = document.getElementById('timeField');
+            const qrField = document.getElementById('qrField');
+            const locationField = document.getElementById('locationField');
+            const amuletsField = document.getElementById('amuletsField');
+            
+            typeSelect.addEventListener('change', (e) => {
+                timeField.classList.add('hidden');
+                qrField.classList.add('hidden');
+                locationField.classList.add('hidden');
+                amuletsField.classList.add('hidden');
+                
+                switch (e.target.value) {
+                    case 'time': timeField.classList.remove('hidden'); break;
+                    case 'qr_scan': qrField.classList.remove('hidden'); break;
+                    case 'location': locationField.classList.remove('hidden'); break;
+                    case 'amulets': amuletsField.classList.remove('hidden'); break;
+                }
+            });
+            
+            document.getElementById('triggerForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const formData = {
+                    type: typeSelect.value,
+                    message: document.getElementById('triggerMessage').value,
+                    adminNote: document.getElementById('triggerAdminNote').value || undefined,
+                    showMessage: true,
+                    broadcastAll: document.getElementById('broadcastAll').checked
+                };
+                
+                switch (formData.type) {
+                    case 'time':
+                        formData.time = document.getElementById('triggerTime').value;
+                        break;
+                    case 'qr_scan':
+                        formData.qrId = document.getElementById('triggerQrId').value;
+                        break;
+                    case 'location':
+                        formData.location = document.getElementById('triggerLocation').value;
+                        break;
+                    case 'amulets':
+                        formData.count = parseInt(document.getElementById('triggerAmulets').value);
+                        break;
+                }
+                
+                try {
+                    const response = await fetch(`${tgApp.backendUrl}/api/admin-dashboard?action=create-trigger`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Telegram-Init-Data': tgApp.userData.initData
+                        },
+                        body: JSON.stringify(formData)
+                    });
+                    
+                    if (response.ok) {
+                        tgApp.showAlert('✅ Триггер создан успешно!');
+                        document.getElementById('triggerForm').reset();
+                        document.getElementById('timeField').classList.add('hidden');
+                        document.getElementById('qrField').classList.add('hidden');
+                        document.getElementById('locationField').classList.add('hidden');
+                        document.getElementById('amuletsField').classList.add('hidden');
+                        await loadTriggers();
+                    } else {
+                        const error = await response.json();
+                        tgApp.showAlert(`❌ Ошибка: ${error.error}`);
+                    }
+                } catch (error) {
+                    console.error('Trigger create error:', error);
+                    tgApp.showAlert('❌ Ошибка создания триггера');
+                }
+            });
+        }
+
+        async function sendEmergencyAlert() {
+            const message = prompt('Введите текст срочного сообщения для всех игроков:');
+            if (!message) return;
+            
+            if (!confirm('Отправить СРОЧНОЕ СООБЩЕНИЕ всем игрокам?\n\n' + message)) return;
+            
+            try {
+                const response = await fetch(`${tgApp.backendUrl}/api/admin-dashboard?action=emergency-alert`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Telegram-Init-Data': tgApp.userData.initData
+                    },
+                    body: JSON.stringify({ message })
+                });
+                
+                if (response.ok) {
+                    tgApp.showAlert('✅ Срочное сообщение отправлено всем игрокам!');
+                    await loadEventsFeed();
+                } else {
+                    const error = await response.json();
+                    tgApp.showAlert(`❌ Ошибка: ${error.error}`);
+                }
+            } catch (error) {
+                console.error('Emergency alert error:', error);
+                tgApp.showAlert('❌ Ошибка отправки сообщения');
+            }
+        }
+
+        setInterval(async () => {
+            if (tgApp.isAdmin()) {
+                await loadDashboardData();
+                await loadEventsFeed();
+            }
+        }, 30000);
+    </script>
+</body>
+</html>
