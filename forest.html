@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Серверный Лес - Кибердеревня</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="telegram.js" defer></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <button class="back-button" onclick="tgApp.closeApp()">←</button>
+            <div class="logo">🌲 Серверный Лес</div>
+            <div class="user-info" id="userInfo"></div>
+        </header>
+
+        <main>
+            <div class="location-content">
+                <h1>Серверный Лес</h1>
+                <p>Древо Памяти просит вашей помощи. Вирус стер пароль от его хранилища.</p>
+                
+                <div class="task-description">
+                    <p>Пароль состоит из количества букв в слове "кибербезопасность" и первых двух букв алфавита.</p>
+                </div>
+                
+                <div class="answer-section">
+                    <input type="text" id="answerInput" placeholder="Введите пароль..." maxlength="10">
+                    <button onclick="checkAnswer()">ПРОВЕРИТЬ</button>
+                </div>
+                
+                <div class="hint-section">
+                    <p>💡 Нужна подсказка? Нажмите кнопку ниже или используйте команду <code>/hint</code> в Telegram</p>
+                    <button class="hint-button" onclick="requestHint()">
+                        ПОЛУЧИТЬ ПОДСКАЗКУ
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('telegramReady', () => {
+            tgApp.sendLocationChanged('forest');
+        });
+
+        function checkAnswer() {
+            const answer = document.getElementById('answerInput').value.trim().toLowerCase();
+            const correctAnswer = tgApp.getPlayerLevel() === 'beginner' ? '16ab' : '16bb';
+            
+            if (answer === correctAnswer) {
+                tgApp.showAlert('✅ Верно! Амулет собран!', () => {
+                    tgApp.sendAmuletCollected(1, 'forest');
+                    setTimeout(() => {
+                        window.location.href = 'bridge.html';
+                    }, 1500);
+                });
+            } else {
+                tgApp.showAlert('❌ Неверно! Попробуйте еще раз.');
+            }
+        }
+
+        function requestHint() {
+            tgApp.requestHint('forest').then(hint => {
+                if (hint) {
+                    tgApp.showAlert(`💡 Подсказка:\n${hint}`);
+                }
+            });
+        }
+    </script>
+</body>
+</html>
