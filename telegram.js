@@ -1,10 +1,11 @@
+// telegram.js - исправленная версия с поддержкой локаций
 class TelegramMiniApp {
     constructor() {
         this.isTelegram = false;
         this.userData = null;
         this.isInited = false;
         this.tg = null;
-        this.backendUrl = 'https://timely-basbousa-f6fdc3.netlify.app';
+        this.backendUrl = 'https://timely-basbousa-f6fdc3.netlify.app'; // ЗАМЕНИТЬ НА ВАШ NETLIFY URL
         this.playerLevel = localStorage.getItem('cybervillage_level') || 'beginner';
         
         document.addEventListener('DOMContentLoaded', () => this.init());
@@ -152,7 +153,7 @@ class TelegramMiniApp {
         if (!this.isTelegram || !this.userData?.initData || !this.backendUrl) return false;
         
         try {
-            await fetch(`${this.backendUrl}/api/game-event`, {
+            const response = await fetch(`${this.backendUrl}/api/game-event`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -165,7 +166,8 @@ class TelegramMiniApp {
                     }
                 })
             });
-            return true;
+            
+            return response.ok;
         } catch (error) {
             console.error('Location change error:', error);
             return false;
@@ -176,7 +178,7 @@ class TelegramMiniApp {
         if (!this.isTelegram || !this.userData?.initData || !this.backendUrl) return false;
         
         try {
-            await fetch(`${this.backendUrl}/api/game-event`, {
+            const response = await fetch(`${this.backendUrl}/api/game-event`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -190,7 +192,8 @@ class TelegramMiniApp {
                     }
                 })
             });
-            return true;
+            
+            return response.ok;
         } catch (error) {
             console.error('Amulet collection error:', error);
             return false;
@@ -247,9 +250,17 @@ class TelegramMiniApp {
 
 📝 <b>Как играть:</b>
 • Выберите уровень сложности
-• Пройдите все 6 локаций
+• Пройдите все 6 локаций в порядке
 • Соберите все амулеты
 • Активируйте Иммунный Щит
+
+📍 <b>Порядок локаций:</b>
+1. 🌳 Серверный Лес
+2. 🌉 Мост VPN  
+3. 💧 Озеро Шифрования
+4. 🎣 Поле Фишинга
+5. 📦 Склад Данных
+6. 🏰 Башня Брандмауэра
 
 💡 <b>Подсказки:</b>
 • Нажмите кнопку "Получить подсказку" на любой локации
@@ -274,6 +285,9 @@ if (!window.Telegram) {
     script.onload = () => {
         console.log('✅ Telegram Web Apps SDK loaded');
         if (!tgApp.isInited) tgApp.init();
+    };
+    script.onerror = (e) => {
+        console.error('❌ Failed to load Telegram SDK:', e);
     };
     document.head.appendChild(script);
 }
