@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Поле Фишинга - Кибердеревня</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="telegram.js" defer></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <button class="back-button" onclick="tgApp.closeApp()">←</button>
+            <div class="logo">🎣 Поле Фишинга</div>
+            <div class="user-info" id="userInfo"></div>
+        </header>
+
+        <main>
+            <div class="location-content">
+                <h1>Поле Фишинга</h1>
+                <p>Вирус рассылает фишинговые сообщения. Определите, какое из них безопасное!</p>
+                
+                <div class="task-description">
+                    <p><strong>Сообщение 1:</strong> "Ваш аккаунт заблокирован. Перейдите по ссылке, чтобы разблокировать: http://bit.ly/2Abc3Xy"</p>
+                    <p><strong>Сообщение 2:</strong> "Ваш пароль был изменен. Для восстановления доступа нажмите: https://support.telegram.org/account/recovery"</p>
+                    <p><strong>Сообщение 3:</strong> "Вам отправлено важное сообщение. Проверьте почту: mail.ru/inbox"</p>
+                </div>
+                
+                <div class="answer-section">
+                    <p><strong>Выберите номер безопасного сообщения:</strong></p>
+                    <div class="radio-group">
+                        <label><input type="radio" name="message" value="1"> 1</label>
+                        <label><input type="radio" name="message" value="2"> 2</label>
+                        <label><input type="radio" name="message" value="3"> 3</label>
+                    </div>
+                    <button onclick="checkAnswer()">ПРОВЕРИТЬ</button>
+                </div>
+                
+                <div class="hint-section">
+                    <p>💡 Нужна подсказка? Нажмите кнопку ниже или используйте команду <code>/hint</code> в Telegram</p>
+                    <button class="hint-button" onclick="requestHint()">
+                        ПОЛУЧИТЬ ПОДСКАЗКУ
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <style>
+        .radio-group {
+            display: flex;
+            gap: 20px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+        .radio-group label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 8px 15px;
+            background: #f0f4ff;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .radio-group input[type="radio"] {
+            margin-right: 8px;
+        }
+    </style>
+
+    <script>
+        document.addEventListener('telegramReady', () => {
+            tgApp.sendLocationChanged('phishing');
+        });
+
+        function checkAnswer() {
+            const selected = document.querySelector('input[name="message"]:checked');
+            if (!selected) {
+                tgApp.showAlert('❌ Выберите номер сообщения!');
+                return;
+            }
+            
+            const answer = selected.value;
+            const correctAnswer = '2';
+            
+            if (answer === correctAnswer) {
+                tgApp.showAlert('✅ Верно! Это официальный сайт поддержки Telegram. Вы получили амулет!', () => {
+                    tgApp.sendAmuletCollected(4, 'phishing');
+                    setTimeout(() => {
+                        window.location.href = 'storage.html';
+                    }, 1500);
+                });
+            } else {
+                tgApp.showAlert('❌ Неверно! Это фишинговая ссылка. Никогда не переходите по подозрительным ссылкам!');
+            }
+        }
+
+        function requestHint() {
+            tgApp.requestHint('phishing').then(hint => {
+                if (hint) {
+                    tgApp.showAlert(`💡 Подсказка:\n${hint}`);
+                }
+            });
+        }
+    </script>
+</body>
+</html>

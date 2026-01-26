@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Склад Данных - Кибердеревня</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="telegram.js" defer></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <button class="back-button" onclick="tgApp.closeApp()">←</button>
+            <div class="logo">📦 Склад Данных</div>
+            <div class="user-info" id="userInfo"></div>
+        </header>
+
+        <main>
+            <div class="location-content">
+                <h1>Склад Данных</h1>
+                <p>Вирус перемешал цветовые коды доступа. Восстановите правильную последовательность!</p>
+                
+                <div class="task-description">
+                    <p><strong>Цветовой код доступа:</strong></p>
+                    <ul>
+                        <li>Цвет неба = #3357FF</li>
+                        <li>Цвет земли = #8B4513</li>
+                        <li>Цвет опасности = #FF0000</li>
+                    </ul>
+                    <p><strong>Подсказка:</strong> Порядок: небо → земля → опасность</p>
+                </div>
+                
+                <div class="answer-section">
+                    <p><strong>Выберите правильный HEX-код:</strong></p>
+                    <div class="color-options">
+                        <div class="color-option" data-hex="#3357FF">
+                            <div class="color-preview" style="background: #3357FF;"></div>
+                            <span>#3357FF</span>
+                        </div>
+                        <div class="color-option" data-hex="#8B4513">
+                            <div class="color-preview" style="background: #8B4513;"></div>
+                            <span>#8B4513</span>
+                        </div>
+                        <div class="color-option" data-hex="#FF0000">
+                            <div class="color-preview" style="background: #FF0000;"></div>
+                            <span>#FF0000</span>
+                        </div>
+                        <div class="color-option" data-hex="#2196F3">
+                            <div class="color-preview" style="background: #2196F3;"></div>
+                            <span>#2196F3</span>
+                        </div>
+                    </div>
+                    <button onclick="checkAnswer()">ПРОВЕРИТЬ</button>
+                </div>
+                
+                <div class="hint-section">
+                    <p>💡 Нужна подсказка? Нажмите кнопку ниже или используйте команду <code>/hint</code> в Telegram</p>
+                    <button class="hint-button" onclick="requestHint()">
+                        ПОЛУЧИТЬ ПОДСКАЗКУ
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <style>
+        .color-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .color-option {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .color-option:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .color-option.selected {
+            border-color: #2575fc;
+            box-shadow: 0 0 0 3px rgba(37, 117, 252, 0.3);
+        }
+        .color-preview {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            margin-bottom: 8px;
+        }
+    </style>
+
+    <script>
+        document.addEventListener('telegramReady', () => {
+            tgApp.sendLocationChanged('storage');
+        });
+
+        let selectedColor = null;
+
+        document.querySelectorAll('.color-option').forEach(option => {
+            option.addEventListener('click', () => {
+                document.querySelectorAll('.color-option').forEach(opt => {
+                    opt.classList.remove('selected');
+                });
+                option.classList.add('selected');
+                selectedColor = option.getAttribute('data-hex');
+            });
+        });
+
+        function checkAnswer() {
+            if (!selectedColor) {
+                tgApp.showAlert('❌ Выберите цветовой код!');
+                return;
+            }
+            
+            const correctAnswer = '#3357FF';
+            
+            if (selectedColor === correctAnswer) {
+                tgApp.showAlert('✅ Верно! Это код цвета неба. Вы получили амулет!', () => {
+                    tgApp.sendAmuletCollected(5, 'storage');
+                    setTimeout(() => {
+                        window.location.href = 'firewall.html';
+                    }, 1500);
+                });
+            } else {
+                tgApp.showAlert('❌ Неверно! Это не код цвета неба. Попробуйте еще раз.');
+            }
+        }
+
+        function requestHint() {
+            tgApp.requestHint('storage').then(hint => {
+                if (hint) {
+                    tgApp.showAlert(`💡 Подсказка:\n${hint}`);
+                }
+            });
+        }
+    </script>
+</body>
+</html>

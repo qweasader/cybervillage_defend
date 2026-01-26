@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Озеро Шифрования - Кибердеревня</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="telegram.js" defer></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <button class="back-button" onclick="tgApp.closeApp()">←</button>
+            <div class="logo">💧 Озеро Шифрования</div>
+            <div class="user-info" id="userInfo"></div>
+        </header>
+
+        <main>
+            <div class="location-content">
+                <h1>Озеро Шифрования</h1>
+                <p>Вирус зашифровал ключ в зеркальном отражении. Расшифруйте его, чтобы получить амулет!</p>
+                
+                <div class="task-description">
+                    <p><strong>Сообщение:</strong> ТИЩ</p>
+                    <p><strong>Подсказка:</strong> Представьте, как слово выглядит в зеркале</p>
+                </div>
+                
+                <div class="answer-section">
+                    <input type="text" id="answerInput" placeholder="Введите расшифрованное слово..." maxlength="20">
+                    <button onclick="checkAnswer()">РАСШИФРОВАТЬ</button>
+                </div>
+                
+                <div class="hint-section">
+                    <p>💡 Нужна подсказка? Нажмите кнопку ниже или используйте команду <code>/hint</code> в Telegram</p>
+                    <button class="hint-button" onclick="requestHint()">
+                        ПОЛУЧИТЬ ПОДСКАЗКУ
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('telegramReady', () => {
+            tgApp.sendLocationChanged('lake');
+        });
+
+        function checkAnswer() {
+            const answer = document.getElementById('answerInput').value.trim().toLowerCase();
+            const correctAnswer = tgApp.getPlayerLevel() === 'beginner' ? 'щит' : 'shield';
+            
+            if (answer === correctAnswer) {
+                tgApp.showAlert('✅ Верно! Вы расшифровали сообщение в зеркале и получили амулет!', () => {
+                    tgApp.sendAmuletCollected(3, 'lake');
+                    setTimeout(() => {
+                        window.location.href = 'phishing.html';
+                    }, 1500);
+                });
+            } else {
+                tgApp.showAlert('❌ Неверно! Попробуйте представить отражение в зеркале.');
+            }
+        }
+
+        function requestHint() {
+            tgApp.requestHint('lake').then(hint => {
+                if (hint) {
+                    tgApp.showAlert(`💡 Подсказка:\n${hint}`);
+                }
+            });
+        }
+    </script>
+</body>
+</html>

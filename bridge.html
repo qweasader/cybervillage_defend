@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мост VPN - Кибердеревня</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="telegram.js" defer></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <button class="back-button" onclick="tgApp.closeApp()">←</button>
+            <div class="logo">🌉 Мост VPN</div>
+            <div class="user-info" id="userInfo"></div>
+        </header>
+
+        <main>
+            <div class="location-content">
+                <h1>Мост VPN</h1>
+                <p>Вирус перехватил наше секретное послание. Расшифруйте его, чтобы получить амулет!</p>
+                
+                <div class="task-description">
+                    <p><strong>Пример:</strong> 'привет' = 16 18 9 3 6 20</p>
+                    <p><strong>Сообщение:</strong> 15 18 1 15 6 20 29 14 6 19 20 30</p>
+                    <p><strong>Подсказка:</strong> Цифры соответствуют порядковым номерам букв в алфавите</p>
+                </div>
+                
+                <div class="answer-section">
+                    <input type="text" id="answerInput" placeholder="Введите расшифрованное сообщение..." maxlength="30">
+                    <button onclick="checkAnswer()">РАСШИФРОВАТЬ</button>
+                </div>
+                
+                <div class="hint-section">
+                    <p>💡 Нужна подсказка? Нажмите кнопку ниже или используйте команду <code>/hint</code> в Telegram</p>
+                    <button class="hint-button" onclick="requestHint()">
+                        ПОЛУЧИТЬ ПОДСКАЗКУ
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('telegramReady', () => {
+            tgApp.sendLocationChanged('bridge');
+        });
+
+        function checkAnswer() {
+            const answer = document.getElementById('answerInput').value.trim().toLowerCase();
+            const correctAnswer = tgApp.getPlayerLevel() === 'beginner' ? 'оранжевый щит' : 'orange shield';
+            
+            if (answer === correctAnswer) {
+                tgApp.showAlert('✅ Верно! Вы расшифровали сообщение и получили амулет!', () => {
+                    tgApp.sendAmuletCollected(2, 'bridge');
+                    setTimeout(() => {
+                        window.location.href = 'lake.html';
+                    }, 1500);
+                });
+            } else {
+                tgApp.showAlert('❌ Неверно! Проверьте алфавит или запросите подсказку.');
+            }
+        }
+
+        function requestHint() {
+            tgApp.requestHint('bridge').then(hint => {
+                if (hint) {
+                    tgApp.showAlert(`💡 Подсказка:\n${hint}`);
+                }
+            });
+        }
+    </script>
+</body>
+</html>
