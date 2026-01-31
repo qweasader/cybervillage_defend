@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="theme-color" content="#6a11cb">
+    <meta name="backend-url" content="https://timely-basbousa-f6fdc3.netlify.app/">
+    
+    <title>Защита Кибердеревни</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    
+    <script type="application/json" id="app-config">
+        {"backendUrl": "https://timely-basbousa-f6fdc3.netlify.app/"}
+    </script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <div class="logo-icon">🛡️</div>
+                <h1>Защита Кибердеревни</h1>
+            </div>
+            <div class="user-info" id="userInfo">
+                <div class="user-avatar">👤</div>
+                <div class="user-name">Гость</div>
+            </div>
+        </header>
+
+        <main>
+            <div class="welcome-section">
+                <h2>Добро пожаловать, Киберстраж!</h2>
+                <p class="subtitle">Вирус "Тень Сети" атакует нашу деревню. Собери все амулеты защиты!</p>
+                
+                <div class="quest-info">
+                    <div class="info-card">
+                        <div class="info-icon">📍</div>
+                        <div class="info-text">
+                            <div class="info-label">Локаций</div>
+                            <div class="info-value" id="locationsCount">0/6</div>
+                        </div>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-icon">✨</div>
+                        <div class="info-text">
+                            <div class="info-label">Амулетов</div>
+                            <div class="info-value" id="amuletsCount">0/6</div>
+                        </div>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-icon">💡</div>
+                        <div class="info-text">
+                            <div class="info-label">Подсказок</div>
+                            <div class="info-value" id="hintsLeft">3/3</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="story-section">
+                <h3>📜 Легенда</h3>
+                <div class="story-text">
+                    <p>Тень Сети проникла в Кибердеревню и похитила шесть амулетов защиты. Без них деревня обречена!</p>
+                    <p>Твоя миссия — пройти через шесть магических локаций, найти пароли доступа и собрать все амулеты.</p>
+                    <p>Каждая локация хранит свой секрет. Ищи подсказки на территории и используй их мудро!</p>
+                </div>
+            </div>
+
+            <div class="locations-section">
+                <h3>🗺️ Карта локаций</h3>
+                <div class="locations-grid" id="locationsGrid">
+                    <!-- Локации будут добавлены динамически -->
+                </div>
+            </div>
+
+            <div class="actions-section">
+                <button class="action-button primary" id="startButton">
+                    🚀 НАЧАТЬ КВЕСТ
+                </button>
+                <button class="action-button secondary" id="resetButton">
+                    🔄 Сбросить прогресс
+                </button>
+            </div>
+
+            <div class="web-note" id="webNote">
+                ℹ️ Это веб-версия. В Telegram доступны дополнительные функции.
+            </div>
+        </main>
+
+        <footer>
+            <p>Организовано командой квеста • <span id="currentTime"></span></p>
+            <div class="commands-info">
+                <p><strong>Команды в Telegram:</strong></p>
+                <p><code>/start</code> - начать игру</p>
+                <p><code>/hint</code> - запросить подсказку</p>
+                <p><code>/stats</code> - статистика</p>
+                <p><code>/admin</code> - админ-панель</p>
+            </div>
+        </footer>
+    </div>
+
+    <script src="telegram.js"></script>
+    <script src="game.js"></script>
+    <script>
+        let locationsData = [];
+
+        document.addEventListener('telegramReady', (event) => {
+            const { isTelegram, userData, isWebVersion } = event.detail;
+
+            if (isWebVersion) {
+                document.getElementById('webNote').style.display = 'block';
+                document.body.classList.add('web-version');
+            } else {
+                document.getElementById('webNote').style.display = 'none';
+                document.body.classList.remove('web-version');
+            }
+
+            if (userData) {
+                document.getElementById('userInfo').innerHTML = `
+                    <div class="user-avatar">${userData.firstName?.[0] || '👤'}</div>
+                    <div class="user-name">${userData.firstName || 'Киберстраж'}</div>
+                `;
+            }
+
+            updateProgressDisplay();
+            loadLocations();
+        });
+
+        function updateProgressDisplay() {
+            const completed = gameEngine.completedLocations.size;
+            const hintsLeft = gameEngine.getHintsLeft();
+            
+            document.getElementById('locationsCount').textContent = `${completed}/6`;
+            document.getElementById('amuletsCount').textContent = `${completed}/6`;
+            document.getElementById('hintsLeft').textContent = `${hintsLeft}/3`;
+        }
+
+        function loadLocations() {
+            locationsData = tgApp.getAllLocations();
+            const grid = document.getElementById('locationsGrid');
+            grid.innerHTML = '';
+
+            locationsData.forEach(location => {
+                const locationCard = document.createElement('div');
+                locationCard.className = 'location-card';
+                
+                const isCompleted = gameEngine.completedLocations.has(location.id);
+                const canAccess = gameEngine.canAccessLocation(location.id) || isCompleted;
+                const statusClass = isCompleted ? 'completed' : (canAccess ? 'available' : 'locked');
+
+                locationCard.innerHTML = `
+                    <div class="location-icon">${location.emoji}</div>
+                    <div class="location-info">
+                        <div class="location-name">${location.name}</div>
+                        <div class="location-status ${statusClass}">
+                            ${isCompleted ? '✅ Пройдено' : (canAccess ? '➡️ Перейти' : '🔒 Заблокировано')}
+                        </div>
+                    </div>
+                `;
+
+                if (canAccess) {
+                    locationCard.addEventListener('click', () => {
+                        window.location.href = `locations/${location.id}.html`;
+                    });
+                }
+
+                grid.appendChild(locationCard);
+            });
+        }
+
+        document.getElementById('startButton').addEventListener('click', async () => {
+            await tgApp.sendGameEvent('quest_started', {
+                teamId: tgApp.userData.teamId
+            });
+
+            tgApp.showAlert('✅ Квест начат! Удачи, Киберстраж!');
+        });
+
+        document.getElementById('resetButton').addEventListener('click', () => {
+            tgApp.showConfirm('Вы уверены, что хотите сбросить весь прогресс?', (result) => {
+                if (result) {
+                    gameEngine.resetProgress();
+                    updateProgressDisplay();
+                    loadLocations();
+                    tgApp.showAlert('🔄 Прогресс сброшен!');
+                }
+            });
+        });
+
+        function updateTime() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('ru-RU', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+            document.getElementById('currentTime').textContent = timeStr;
+        }
+
+        setInterval(updateTime, 1000);
+        updateTime();
+    </script>
+</body>
+</html>

@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#6a11cb">
+    <meta name="backend-url" content="https://timely-basbousa-f6fdc3.netlify.app/
+    <title>Врата Кибердеревни</title>
+    <link rel="stylesheet" href="../style.css">
+    <script src="../telegram.js" defer></script>
+    <script src="../game.js" defer></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <button class="back-button" id="backBtn">← Назад</button>
+            <div class="location-title">🚪 Врата Кибердеревни</div>
+            <div class="user-avatar-small" id="userAvatar">👤</div>
+        </header>
+
+        <main>
+            <div class="location-content">
+                <div class="location-image">
+                    <div class="location-emoji">🚪</div>
+                </div>
+
+                <div class="password-section">
+                    <h2>🔑 Введите пароль доступа</h2>
+                    <p class="password-desc">Пароль находится на территории локации. Найдите его и введите здесь.</p>
+                    
+                    <input type="text" id="passwordInput" class="password-input" placeholder="Введите пароль..." maxlength="20">
+                    <button class="submit-button" id="submitBtn">Открыть врата</button>
+                </div>
+
+                <div class="mission-section" id="missionSection" style="display: none;">
+                    <h2>🎯 Задание</h2>
+                    <div id="missionContent" class="mission-content">
+                        <!-- Задание будет загружено динамически -->
+                    </div>
+
+                    <div class="answer-section">
+                        <h3>🔑 Введите ответ</h3>
+                        <input type="text" id="answerInput" class="answer-input" placeholder="Введите ответ..." maxlength="50">
+                        <button class="submit-button" id="answerBtn">Проверить</button>
+                    </div>
+                </div>
+
+                <div class="hint-section">
+                    <button class="hint-button" id="hintBtn">
+                        💡 Получить подсказку <span id="hintCounter"></span>
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Защита Кибердеревни • Локация 1 из 6</p>
+        </footer>
+    </div>
+
+    <script>
+        const locationId = 'gates';
+        let missionData = null;
+        let passwordVerified = false;
+
+        document.addEventListener('telegramReady', async (event) => {
+            const { userData } = event.detail;
+            
+            if (userData) {
+                document.getElementById('userAvatar').textContent = userData.firstName?.[0] || '👤';
+            }
+
+            // Проверяем, не прошли ли мы уже эту локацию
+            if (gameEngine.completedLocations.has(locationId)) {
+                showMissionSection();
+                loadMission();
+                passwordVerified = true;
+            }
+
+            updateHintCounter();
+        });
+
+        // Проверка пароля
+        document.getElementById('submitBtn').addEventListener('click', async () => {
+            const password = document.getElementById('passwordInput').value.trim();
+            
+            if (!password) {
+                tgApp.showAlert('⚠️ Введите пароль!');
+                return;
+            }
+
+            const result = await tgApp.checkLocationPassword(locationId, password);
+            
+            if (result.success) {
+                passwordVerified = true;
+                tgApp.showAlert('✅ Пароль верный! Врата открыты!', () => {
+                    showMissionSection();
+                    loadMission();
+                });
+            } else {
+                tgApp.showAlert(`❌ ${result.message || 'Неверный пароль!'}`);
+            }
+        });
+
+        // Загрузка задания
+        async function loadMission() {
+            missionData = await tgApp.getMission(locationId);
+            
+            if (!missionData) {
+                document.getElementById('missionContent').innerHTML = `
+                    <p>⚠️ Задание ещё не настроено администратором.</p>
+                    <p>Попробуйте позже или свяжитесь с организаторами.</p>
+                `;
+                return;
+            }
+
+            document.getElementById('missionContent').innerHTML = `
+                <p>${missionData.text || 'Задание загружено'}</p>
+                ${missionData.imageUrl ? `<img src="${missionData.imageUrl}" alt="Изображение" class="mission-image">` : ''}
+            `;
+        }
+
+        function showMissionSection() {
+            document.querySelector('.password-section').style.display = 'none';
+            document.getElementById('missionSection').style.display = 'block';
+        }
+
+        // Проверка ответа
+        document.getElementById('answerBtn').addEventListener('click', async () => {
+            const answer = document.getElementById('answerInput').value.trim().toLowerCase();
+            
+            if (!answer) {
+                tgApp.showAlert('⚠️ Введите ответ!');
+                return;
+            }
+
+            if (!missionData) {
+                tgApp.showAlert('⚠️ Задание не загружено!');
+                return;
+            }
+
+            const correctAnswer = missionData.answer?.toLowerCase();
+            
+            if (answer === correctAnswer) {
+                await tgApp.sendGameEvent('location_completed', {
+                    location: locationId,
+                    locationName: tgApp.getLocationName(locationId),
+                    answer: answer
+                });
+
+                gameEngine.markLocationCompleted(locationId);
+                
+                tgApp.showAlert('🎉 Отлично! Локация пройдена!', () => {
+                    window.location.href = '../index.html';
+                });
+            } else {
+                tgApp.showAlert('❌ Неверно! Попробуйте еще раз или запросите подсказку.');
+            }
+        });
+
+        // Запрос подсказки
+        document.getElementById('hintBtn').addEventListener('click', async () => {
+            if (!passwordVerified) {
+                tgApp.showAlert('⚠️ Сначала введите пароль доступа!');
+                return;
+            }
+
+            const hint = await tgApp.requestHint(locationId);
+            
+            if (hint) {
+                tgApp.showAlert(`💡 Подсказка:\n${hint.text}`);
+                updateHintCounter();
+            }
+        });
+
+        function updateHintCounter() {
+            const hintsLeft = gameEngine.getHintsLeft();
+            document.getElementById('hintCounter').textContent = `(${hintsLeft} осталось)`;
+        }
+
+        document.getElementById('backBtn').addEventListener('click', () => {
+            window.history.back();
+        });
+
+        document.getElementById('passwordInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('submitBtn').click();
+            }
+        });
+
+        document.getElementById('answerInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('answerBtn').click();
+            }
+        });
+    </script>
+</body>
+</html>
