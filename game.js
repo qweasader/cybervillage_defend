@@ -1,5 +1,4 @@
-// game.js - логика игровых событий
-
+// game.js - добавлена проверка авторизации при запуске
 class GameEngine {
     constructor() {
         this.currentLocation = null;
@@ -7,6 +6,37 @@ class GameEngine {
         this.hintsUsed = 0;
         this.maxHints = 3;
         this.loadProgress();
+        
+        // Проверяем авторизацию при запуске
+        this.checkAuthorization();
+    }
+
+    checkAuthorization() {
+        // Проверяем, что приложение запущено в Telegram
+        if (!tgApp.isTelegram) {
+            console.warn('⚠️ Приложение запущено не в Telegram');
+            return;
+        }
+        
+        // Проверяем, что есть initData
+        if (!tgApp.userData?.initData) {
+            console.error('❌ Отсутствует initData! Приложение должно быть запущено через бота.');
+            tgApp.showAlert(
+                'Ошибка авторизации!\n\n' +
+                'Приложение должно быть запущено ТОЛЬКО через кнопку "Начать квест" в боте.\n\n' +
+                'Закройте это окно и нажмите кнопку в боте ещё раз.'
+            );
+            return;
+        }
+        
+        // Проверяем, что есть userId
+        if (!tgApp.userData?.id) {
+            console.error('❌ Отсутствует userId в initData!');
+            tgApp.showAlert('Ошибка: не удалось определить вашу учётную запись.');
+            return;
+        }
+        
+        console.log('✅ Авторизация проверена успешно');
     }
 
     loadProgress() {
