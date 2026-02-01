@@ -1,4 +1,4 @@
-// telegram.js - исправленная версия с правильной передачей initData и обработкой ошибок
+// telegram.js - полная версия с правильной обработкой инициализации
 class TelegramMiniApp {
     constructor() {
         this.isTelegram = false;
@@ -7,7 +7,11 @@ class TelegramMiniApp {
         this.tg = null;
         this.backendUrl = null;
         this.loadConfig();
-        document.addEventListener('DOMContentLoaded', () => this.init());
+        if (window.Telegram?.WebApp) {
+            this.init();
+        } else {
+            this.loadTelegramSDK().then(() => this.init());
+        }
     }
 
     loadConfig() {
@@ -36,8 +40,32 @@ class TelegramMiniApp {
         console.warn('⚠️ Backend URL not configured');
     }
 
+    loadTelegramSDK() {
+        return new Promise((resolve) => {
+            if (window.Telegram?.WebApp) {
+                resolve();
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.src = 'https://telegram.org/js/telegram-web-app.js';
+            script.async = true;
+            script.onload = () => {
+                console.log('✅ Telegram Web Apps SDK загружен');
+                resolve();
+            };
+            script.onerror = (e) => {
+                console.error('❌ Не удалось загрузить Telegram SDK:', e);
+                resolve();
+            };
+            document.head.appendChild(script);
+        });
+    }
+
     async init() {
         try {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
             if (window.Telegram?.WebApp) {
                 this.isTelegram = true;
                 this.tg = window.Telegram.WebApp;
@@ -51,14 +79,34 @@ class TelegramMiniApp {
                     username: initDataUnsafe?.user?.username,
                     teamId: this.getTeamIdFromParams(),
                     isPremium: initDataUnsafe?.user?.is_premium || false,
-                    initData: this.tg.initData // КРИТИЧЕСКИ ВАЖНО: полный initData для авторизации
+                    initData: this.tg.initData
                 };
 
-                // ЛОГИРОВАНИЕ ДЛЯ ОТЛАДКИ
-                console.log('✅ Telegram Mini App инициализирован');
-                console.log('👤 User ID:', this.userData.id);
-                console.log('🔖 Team ID из URL:', this.userData.teamId);
-                console.log('🔑 InitData длина:', this.userData.initData?.length || 0);
+                if (!this.userData.initData || this.userData.initData.trim() === '') {
+                    console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: initData ПУСТОЙ!');
+                    console.error('Проверьте:');
+                    console.error('1. Домен добавлен в @BotFather через /setdomain?');
+                    console.error('2. Приложение открыто через кнопку в боте?');
+                    console.error('3. URL начинается с https://?');
+                    
+                    setTimeout(() => {
+                        this.showAlert(
+                            '❌ КРИТИЧЕСКАЯ ОШИБКА АВТОРИЗАЦИИ!\n\n' +
+                            'Причина: Telegram не передал данные авторизации.\n\n' +
+                            'РЕШЕНИЕ:\n' +
+                            '1. Закройте это окно\n' +
+                            '2. Напишите боту /start\n' +
+                            '3. Нажмите кнопку "Начать квест"\n\n' +
+                            'Если ошибка повторяется:\n' +
+                            '• Проверьте, что домен добавлен в @BotFather (/setdomain)\n' +
+                            '• Убедитесь, что используется HTTPS'
+                        );
+                    }, 500);
+                } else {
+                    console.log('✅ Telegram Mini App инициализирован');
+                    console.log('👤 User ID:', this.userData.id);
+                    console.log('🔑 InitData длина:', this.userData.initData.length);
+                }
 
                 this.setupCloseButton();
                 this.setupMainButton();
@@ -86,7 +134,7 @@ class TelegramMiniApp {
             username: 'test_user',
             teamId: this.getTeamIdFromParams() || `team_${Math.floor(Math.random() * 1000)}`,
             isWebVersion: true,
-            initData: '' // В веб-версии initData пустой
+            initData: ''
         };
         console.log('🔧 Загружены тестовые данные:', this.userData);
     }
@@ -149,14 +197,12 @@ class TelegramMiniApp {
         }
     }
 
-    // Получение задания для локации
     async getMission(location) {
         if (!this.backendUrl) {
             console.warn('⚠️ Backend URL not configured');
             return null;
         }
 
-        // КРИТИЧЕСКИ ВАЖНО: проверяем наличие initData
         if (!this.userData?.initData) {
             console.error('❌ initData is missing! App must be opened via Telegram');
             this.showAlert('Ошибка авторизации. Откройте приложение через Telegram!');
@@ -168,7 +214,7 @@ class TelegramMiniApp {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-Telegram-Init-Data': this.userData.initData // ПРАВИЛЬНЫЙ ЗАГОЛОВОК
+                    'X-Telegram-Init-Data': this.userData.initData
                 },
                 body: JSON.stringify({
                     location,
@@ -194,7 +240,6 @@ class TelegramMiniApp {
         }
     }
 
-    // Отправка игрового события
     async sendGameEvent(eventType, eventData = {}) {
         if (!this.userData?.initData && !this.isTelegram) {
             console.warn('⚠️ Not in Telegram, skipping event send');
@@ -206,7 +251,6 @@ class TelegramMiniApp {
             return false;
         }
 
-        // КРИТИЧЕСКИ ВАЖНО: проверяем наличие initData
         if (!this.userData?.initData) {
             console.error('❌ initData is missing!');
             return false;
@@ -217,7 +261,7 @@ class TelegramMiniApp {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-Telegram-Init-Data': this.userData.initData // ПРАВИЛЬНЫЙ ЗАГОЛОВОК
+                    'X-Telegram-Init-Data': this.userData.initData
                 },
                 body: JSON.stringify({
                     eventType,
@@ -242,7 +286,6 @@ class TelegramMiniApp {
         }
     }
 
-    // Запрос подсказки
     async requestHint(location, hintLevel = 1) {
         if (!this.userData?.initData) {
             this.showAlert('⚠️ Подсказки доступны только в Telegram Mini App');
@@ -259,7 +302,7 @@ class TelegramMiniApp {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-Telegram-Init-Data': this.userData.initData // ПРАВИЛЬНЫЙ ЗАГОЛОВОК
+                    'X-Telegram-Init-Data': this.userData.initData
                 },
                 body: JSON.stringify({
                     location,
@@ -290,20 +333,17 @@ class TelegramMiniApp {
         }
     }
 
-    // Проверка пароля локации — УЛУЧШЕННАЯ ВЕРСИЯ С ПРОВЕРКОЙ INITDATA
     async checkLocationPassword(location, password) {
         if (!this.backendUrl) {
             console.warn('⚠️ Backend URL не настроен');
             return { success: false, message: 'Сервис недоступен' };
         }
 
-        // КРИТИЧЕСКАЯ ПРОВЕРКА: есть ли initData?
         if (!this.userData?.initData) {
             console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: initData отсутствует!');
             console.error('Проверьте, что приложение запущено через Telegram Web Apps');
             console.error('userData:', this.userData);
             
-            // Показываем понятное сообщение пользователю
             this.showAlert(
                 'Ошибка авторизации!\n\n' +
                 'Приложение должно быть запущено ТОЛЬКО через кнопку "Начать квест" в боте.\n\n' +
@@ -316,7 +356,6 @@ class TelegramMiniApp {
             };
         }
 
-        // Дополнительная проверка: есть ли userId?
         if (!this.userData?.id) {
             console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: userId отсутствует в initData!');
             this.showAlert('Ошибка: не удалось определить вашу учётную запись. Перезапустите приложение через бота.');
@@ -324,7 +363,6 @@ class TelegramMiniApp {
         }
 
         try {
-            // ЛОГИРОВАНИЕ ДЛЯ ОТЛАДКИ
             console.log(`📤 Отправка запроса на /check-password`);
             console.log(`   Location: ${location}`);
             console.log(`   UserId: ${this.userData.id}`);
@@ -335,7 +373,7 @@ class TelegramMiniApp {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-Telegram-Init-Data': this.userData.initData // ПРАВИЛЬНЫЙ ЗАГОЛОВОК
+                    'X-Telegram-Init-Data': this.userData.initData
                 },
                 body: JSON.stringify({
                     location,
@@ -345,14 +383,12 @@ class TelegramMiniApp {
                 })
             });
 
-            // ЛОГИРОВАНИЕ ОТВЕТА
             const result = await response.json();
             console.log(`📥 Получен ответ от /check-password:`, result);
 
             if (!response.ok) {
                 console.warn(`⚠️ Ошибка ${response.status}:`, result.message);
                 
-                // Специальная обработка ошибки регистрации
                 if (result.requiresRegistration) {
                     this.showAlert(
                         '❗️ Вы не зарегистрированы в квесте!\n\n' +
@@ -384,7 +420,6 @@ class TelegramMiniApp {
         }
     }
 
-    // Сохранение прогресса
     saveProgress(key, value) {
         localStorage.setItem(`quest_${key}`, value);
     }
@@ -393,7 +428,6 @@ class TelegramMiniApp {
         return localStorage.getItem(`quest_${key}`);
     }
 
-    // Получение всех локаций
     getAllLocations() {
         return [
             { id: 'gates', name: 'Врата Кибердеревни', emoji: '🚪', order: 1 },
@@ -414,20 +448,4 @@ class TelegramMiniApp {
 const tgApp = window.tgApp || new TelegramMiniApp();
 window.tgApp = tgApp;
 
-if (!window.Telegram) {
-    const script = document.createElement('script');
-    script.src = 'https://telegram.org/js/telegram-web-app.js';
-    script.async = true;
-    script.onload = () => {
-        console.log('✅ Telegram Web Apps SDK загружен');
-        if (!tgApp.isInited) tgApp.init();
-    };
-    script.onerror = (e) => {
-        console.error('❌ Не удалось загрузить Telegram SDK:', e);
-        tgApp.loadMockData();
-        tgApp.onReady();
-    };
-    document.head.appendChild(script);
-}
-
-console.log('🚀 TelegramMiniApp инициализирован');
+console.log('🚀 TelegramMiniApp инициализация запущена');
