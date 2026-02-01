@@ -1,4 +1,4 @@
-// game.js - добавлена проверка авторизации при запуске
+// game.js - полная версия с проверкой авторизации при запуске
 class GameEngine {
     constructor() {
         this.currentLocation = null;
@@ -6,19 +6,15 @@ class GameEngine {
         this.hintsUsed = 0;
         this.maxHints = 3;
         this.loadProgress();
-        
-        // Проверяем авторизацию при запуске
         this.checkAuthorization();
     }
 
     checkAuthorization() {
-        // Проверяем, что приложение запущено в Telegram
         if (!tgApp.isTelegram) {
             console.warn('⚠️ Приложение запущено не в Telegram');
             return;
         }
         
-        // Проверяем, что есть initData
         if (!tgApp.userData?.initData) {
             console.error('❌ Отсутствует initData! Приложение должно быть запущено через бота.');
             tgApp.showAlert(
@@ -29,7 +25,6 @@ class GameEngine {
             return;
         }
         
-        // Проверяем, что есть userId
         if (!tgApp.userData?.id) {
             console.error('❌ Отсутствует userId в initData!');
             tgApp.showAlert('Ошибка: не удалось определить вашу учётную запись.');
@@ -71,7 +66,6 @@ class GameEngine {
         
         if (!currentLocation) return false;
         
-        // Проверяем, что предыдущие локации пройдены
         const previousLocations = locations.filter(l => l.order < currentLocation.order);
         return previousLocations.every(l => this.completedLocations.has(l.id));
     }
