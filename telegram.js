@@ -1,4 +1,4 @@
-// telegram.js - исправленная версия с правильной передачей initData
+// telegram.js - исправленная версия с правильной передачей initData и обработкой ошибок
 class TelegramMiniApp {
     constructor() {
         this.isTelegram = false;
@@ -51,22 +51,27 @@ class TelegramMiniApp {
                     username: initDataUnsafe?.user?.username,
                     teamId: this.getTeamIdFromParams(),
                     isPremium: initDataUnsafe?.user?.is_premium || false,
-                    initData: this.tg.initData // КРИТИЧЕСКИ ВАЖНО: сохраняем полный initData
+                    initData: this.tg.initData // КРИТИЧЕСКИ ВАЖНО: полный initData для авторизации
                 };
 
-                console.log('✅ Telegram user initialized:', this.userData);
+                // ЛОГИРОВАНИЕ ДЛЯ ОТЛАДКИ
+                console.log('✅ Telegram Mini App инициализирован');
+                console.log('👤 User ID:', this.userData.id);
+                console.log('🔖 Team ID из URL:', this.userData.teamId);
+                console.log('🔑 InitData длина:', this.userData.initData?.length || 0);
+
                 this.setupCloseButton();
                 this.setupMainButton();
                 this.isInited = true;
                 this.onReady();
             } else {
-                console.log('🌐 Not running in Telegram Mini App');
+                console.log('🌐 Не запущено в Telegram Mini App');
                 this.loadMockData();
                 this.isInited = true;
                 this.onReady();
             }
         } catch (error) {
-            console.error('❌ Telegram init error:', error);
+            console.error('❌ Ошибка инициализации Telegram:', error);
             this.loadMockData();
             this.isInited = true;
             this.onReady();
@@ -83,7 +88,7 @@ class TelegramMiniApp {
             isWebVersion: true,
             initData: '' // В веб-версии initData пустой
         };
-        console.log('🔧 Loaded mock user data:', this.userData);
+        console.log('🔧 Загружены тестовые данные:', this.userData);
     }
 
     getTeamIdFromParams() {
@@ -285,23 +290,47 @@ class TelegramMiniApp {
         }
     }
 
-    // Проверка пароля локации — ИСПРАВЛЕНО: правильная передача initData
+    // Проверка пароля локации — УЛУЧШЕННАЯ ВЕРСИЯ С ПРОВЕРКОЙ INITDATA
     async checkLocationPassword(location, password) {
         if (!this.backendUrl) {
-            console.warn('⚠️ Backend URL not configured');
+            console.warn('⚠️ Backend URL не настроен');
             return { success: false, message: 'Сервис недоступен' };
         }
 
-        // КРИТИЧЕСКИ ВАЖНО: проверяем наличие initData
+        // КРИТИЧЕСКАЯ ПРОВЕРКА: есть ли initData?
         if (!this.userData?.initData) {
-            console.error('❌ initData is missing! Cannot check password.');
+            console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: initData отсутствует!');
+            console.error('Проверьте, что приложение запущено через Telegram Web Apps');
+            console.error('userData:', this.userData);
+            
+            // Показываем понятное сообщение пользователю
+            this.showAlert(
+                'Ошибка авторизации!\n\n' +
+                'Приложение должно быть запущено ТОЛЬКО через кнопку "Начать квест" в боте.\n\n' +
+                'Закройте это окно и нажмите кнопку в боте ещё раз.'
+            );
+            
             return { 
                 success: false, 
-                message: 'Не авторизован. Откройте приложение через Telegram!' 
+                message: 'Не авторизован. Откройте приложение через кнопку в боте!' 
             };
         }
 
+        // Дополнительная проверка: есть ли userId?
+        if (!this.userData?.id) {
+            console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: userId отсутствует в initData!');
+            this.showAlert('Ошибка: не удалось определить вашу учётную запись. Перезапустите приложение через бота.');
+            return { success: false, message: 'Ошибка авторизации' };
+        }
+
         try {
+            // ЛОГИРОВАНИЕ ДЛЯ ОТЛАДКИ
+            console.log(`📤 Отправка запроса на /check-password`);
+            console.log(`   Location: ${location}`);
+            console.log(`   UserId: ${this.userData.id}`);
+            console.log(`   TeamId: ${this.userData.teamId}`);
+            console.log(`   InitData длина: ${this.userData.initData.length}`);
+
             const response = await fetch(`${this.backendUrl}/check-password`, {
                 method: 'POST',
                 headers: {
@@ -316,18 +345,42 @@ class TelegramMiniApp {
                 })
             });
 
+            // ЛОГИРОВАНИЕ ОТВЕТА
             const result = await response.json();
-            
-            // Если ошибка авторизации — показываем сообщение
-            if (response.status === 401 || response.status === 403) {
-                console.error('❌ Authorization failed:', result.message);
-                // Не показываем алерт здесь, чтобы не мешать пользователю
+            console.log(`📥 Получен ответ от /check-password:`, result);
+
+            if (!response.ok) {
+                console.warn(`⚠️ Ошибка ${response.status}:`, result.message);
+                
+                // Специальная обработка ошибки регистрации
+                if (result.requiresRegistration) {
+                    this.showAlert(
+                        '❗️ Вы не зарегистрированы в квесте!\n\n' +
+                        '1. Закройте это окно\n' +
+                        '2. Напишите боту /start\n' +
+                        '3. Введите код команды\n' +
+                        '4. Нажмите "Начать квест" снова'
+                    );
+                } else if (response.status === 401) {
+                    this.showAlert(
+                        '🔐 Ошибка авторизации!\n\n' +
+                        'Приложение должно быть запущено ТОЛЬКО через кнопку "Начать квест" в боте.\n\n' +
+                        'Закройте это окно и нажмите кнопку в боте ещё раз.'
+                    );
+                }
+                
+                return result;
             }
-            
+
             return result;
         } catch (error) {
-            console.error('❌ Failed to check password:', error);
-            return { success: false, message: 'Ошибка при проверке пароля' };
+            console.error('❌ Критическая ошибка при проверке пароля:', error);
+            this.showAlert(
+                'Произошла ошибка при подключении к серверу.\n\n' +
+                'Проверьте интернет-соединение и попробуйте ещё раз.\n\n' +
+                'Если ошибка повторяется, напишите организаторам.'
+            );
+            return { success: false, message: 'Ошибка подключения' };
         }
     }
 
@@ -366,13 +419,15 @@ if (!window.Telegram) {
     script.src = 'https://telegram.org/js/telegram-web-app.js';
     script.async = true;
     script.onload = () => {
-        console.log('✅ Telegram Web Apps SDK loaded');
+        console.log('✅ Telegram Web Apps SDK загружен');
         if (!tgApp.isInited) tgApp.init();
     };
     script.onerror = (e) => {
-        console.error('❌ Failed to load Telegram SDK:', e);
+        console.error('❌ Не удалось загрузить Telegram SDK:', e);
+        tgApp.loadMockData();
+        tgApp.onReady();
     };
     document.head.appendChild(script);
 }
 
-console.log('🚀 TelegramMiniApp initialized');
+console.log('🚀 TelegramMiniApp инициализирован');
